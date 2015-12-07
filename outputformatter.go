@@ -1,11 +1,12 @@
 package goose
 
 import (
-	"github.com/advancedlogic/goquery"
-	"golang.org/x/net/html"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
 var normalizeWhitespaceRegexp = regexp.MustCompile(`[ \r\f\v\t]+`)
@@ -17,11 +18,9 @@ type outputFormatter struct {
 	language string
 }
 
-func (formatter *outputFormatter) getLanguage(article *Article) string {
-	if formatter.config.useMetaLanguage {
-		if article.MetaLang != "" {
-			return article.MetaLang
-		}
+func (formatter *outputFormatter) getLanguage(lang string) string {
+	if formatter.config.useMetaLanguage && "" != lang {
+		return lang
 	}
 	return formatter.config.targetLanguage
 }
@@ -30,9 +29,9 @@ func (formatter *outputFormatter) getTopNode() *goquery.Selection {
 	return formatter.topNode
 }
 
-func (formatter *outputFormatter) getFormattedText(article *Article) (output string, links []string) {
-	formatter.topNode = article.TopNode
-	formatter.language = formatter.getLanguage(article)
+func (formatter *outputFormatter) getFormattedText(topNode *goquery.Selection, lang string) (output string, links []string) {
+	formatter.topNode = topNode
+	formatter.language = formatter.getLanguage(lang)
 	if formatter.language == "" {
 		formatter.language = formatter.config.targetLanguage
 	}
@@ -41,7 +40,7 @@ func (formatter *outputFormatter) getFormattedText(article *Article) (output str
 	formatter.replaceTagsWithText()
 	formatter.removeParagraphsWithFewWords()
 	output = formatter.getOutputText()
-	return
+	return output, links
 }
 
 func (formatter *outputFormatter) convertToText() string {
@@ -59,7 +58,7 @@ func (formatter *outputFormatter) convertToText() string {
 }
 
 func (formatter *outputFormatter) linksToText() []string {
-	urlList := []string{}
+	var urlList []string
 	links := formatter.topNode.Find("a")
 	links.Each(func(i int, a *goquery.Selection) {
 		imgs := a.Find("img")
@@ -69,8 +68,8 @@ func (formatter *outputFormatter) linksToText() []string {
 			node.Type = html.TextNode
 			// save a list of URLs
 			url, _ := a.Attr("href")
-			isValidUrl, _ := regexp.MatchString("^http[s]?://", url)
-			if isValidUrl {
+			isValidURL, _ := regexp.MatchString("^http[s]?://", url)
+			if isValidURL {
 				urlList = append(urlList, url)
 			}
 		}

@@ -2,7 +2,7 @@ package goose
 
 import (
 	"container/list"
-	"github.com/advancedlogic/goquery"
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"log"
@@ -23,7 +23,8 @@ func NewCleaner(config Configuration) Cleaner {
 }
 
 var divToPElementsPattern = regexp.MustCompile("<(a|blockquote|dl|div|img|ol|p|pre|table|ul)")
-var tabsRegEx, _ = regexp.Compile("\\t|^\\s+$]")
+var tabsRegEx = regexp.MustCompile("\\t|^\\s+$]")
+var removeVisibilityStyleRegEx = regexp.MustCompile("visibility:[ ]*hidden|display:[ ]*none")
 var removeNodesRegEx = regexp.MustCompile("" +
 	"PopularQuestions|" +
 	"[Cc]omentario|" +
@@ -199,17 +200,17 @@ var removeNodesRegEx = regexp.MustCompile("" +
 	"^whats[_-]next$|" +
 	"wp-caption-text")
 
-func (c *Cleaner) clean(article *Article) *goquery.Document {
+// Clean removes HTML elements around the main content and prepares the document for parsing
+func (c *Cleaner) Clean(docToClean *goquery.Document) *goquery.Document {
 	if c.config.debug {
 		log.Println("Starting cleaning phase with Cleaner")
 	}
-	docToClean := article.Doc
 	docToClean = c.cleanArticleTags(docToClean)
 	docToClean = c.cleanEMTags(docToClean)
 	docToClean = c.dropCaps(docToClean)
 	docToClean = c.removeScriptsStyle(docToClean)
 	docToClean = c.cleanBadTags(docToClean, removeNodesRegEx, &[]string{"id", "class", "name"})
-	docToClean = c.cleanBadTags(docToClean, regexp.MustCompile("visibility:[ ]*hidden|display:[ ]*none"), &[]string{"style"})
+	docToClean = c.cleanBadTags(docToClean, removeVisibilityStyleRegEx, &[]string{"style"})
 	docToClean = c.removeTags(docToClean, &[]string{"nav", "footer", "aside", "cite"})
 	docToClean = c.cleanParaSpans(docToClean)
 
@@ -263,9 +264,7 @@ func (c *Cleaner) cleanDivs(doc *goquery.Document) *goquery.Document {
 	divs.Each(func(i int, s *goquery.Selection) {
 		children := s.Children()
 		if children.Size() == 0 {
-			text := s.Text()
-			text = strings.Trim(text, " ")
-			text = strings.Trim(text, "\t")
+			text := strings.Trim(s.Text(), " \t")
 			text = strings.ToLower(text)
 			frames[text]++
 			if framesNodes[text] == nil {
@@ -306,7 +305,7 @@ func (c *Cleaner) removeScriptsStyle(doc *goquery.Document) *goquery.Document {
 	if c.config.debug {
 		log.Println("Starting to remove script tags")
 	}
-	count := 0 // remove
+	count := 0 // number of removed nodes
 	scripts := doc.Find("script,noscript,style")
 	scripts.Each(func(i int, s *goquery.Selection) {
 		c.config.parser.removeNode(s)
