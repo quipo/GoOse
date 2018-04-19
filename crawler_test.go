@@ -709,7 +709,8 @@ func Test_ReutersParse(t *testing.T) {
 		TopImage:        "http://s2.reutersmedia.net/resources/r/?m=02&d=20151024&t=2&i=1089359801&w=&fh=545px&fw=&ll=&pl=&sq=&r=LYNXNPEB9N023",
 	}
 
-	err := ValidateArticle(article)
+	removed := []string{"~~~REMOVED~~~"}
+	err := ValidateArticle(article, &removed)
 	if err != nil {
 		t.Error(err)
 	}
