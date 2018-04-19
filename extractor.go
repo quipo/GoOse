@@ -5,10 +5,15 @@ import (
 	"log"
 	"math"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/araddon/dateparse"
+	"github.com/gigawattio/window"
+	"github.com/jaytaylor/html2text"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"gopkg.in/fatih/set.v0"
@@ -101,7 +106,7 @@ func (extr *ContentExtractor) splitTitle(titles []string) string {
 
 // GetMetaLanguage returns the meta language set in the source, if the article has one
 func (extr *ContentExtractor) GetMetaLanguage(document *goquery.Document) string {
-	language := ""
+	var language string
 	shtml := document.Find("html")
 	attr, _ := shtml.Attr("lang")
 	if attr == "" {
@@ -109,7 +114,7 @@ func (extr *ContentExtractor) GetMetaLanguage(document *goquery.Document) string
 	}
 	if attr == "" {
 		selection := document.Find("meta").EachWithBreak(func(i int, s *goquery.Selection) bool {
-			exists := false
+			var exists bool
 			attr, exists = s.Attr("http-equiv")
 			if exists && attr == "content-language" {
 				return false
@@ -265,9 +270,88 @@ func (extr *ContentExtractor) GetTags(document *goquery.Document) *set.Set {
 	return tags
 }
 
+// GetPublishDate returns the publication date, if one can be located.
+func (extr *ContentExtractor) GetPublishDate(document *goquery.Document) *time.Time {
+	raw, err := document.Html()
+	if err != nil {
+		log.Printf("Error converting document HTML nodes to raw HTML: %s (publish date detection aborted)\n", err)
+		return nil
+	}
+
+	text, err := html2text.FromString(raw)
+	if err != nil {
+		log.Printf("Error converting document HTML to plaintext: %s (publish date detection aborted)\n", err)
+		return nil
+	}
+
+	text = strings.ToLower(text)
+
+	// Simplify months because the dateparse pkg only handles abbreviated.
+	for k, v := range map[string]string{
+		"january":  "jan",
+		"march":    "mar",
+		"february": "feb",
+		"april":    "apr",
+		// "may":       "may", // Pointless.
+		"june":      "jun",
+		"august":    "aug",
+		"september": "sep",
+		"sept":      "sep",
+		"october":   "oct",
+		"november":  "nov",
+		"december":  "dec",
+		"th,":       ",", // Strip day number suffixes.
+		"rd,":       ",",
+	} {
+		text = strings.Replace(text, k, v, -1)
+	}
+	text = strings.Replace(text, "\n", " ", -1)
+	text = regexp.MustCompile(" +").ReplaceAllString(text, " ")
+
+	tuple1 := strings.Split(text, " ")
+
+	var (
+		expr  = regexp.MustCompile("[0-9]")
+		ts    time.Time
+		found bool
+	)
+	for _, n := range []int{3, 4, 5, 2, 6} {
+		for _, win := range window.Rolling(tuple1, n) {
+			if !expr.MatchString(strings.Join(win, " ")) {
+				continue
+			}
+
+			input := strings.Join(win, " ")
+			ts, err = dateparse.ParseAny(input)
+			if err == nil && ts.Year() > 0 && ts.Month() > 0 && ts.Day() > 0 {
+				found = true
+				break
+			}
+
+			// Try injecting a comma for dateparse.
+			win[1] = win[1] + ","
+			input = strings.Join(win, " ")
+			ts, err = dateparse.ParseAny(input)
+			if err == nil && ts.Year() > 0 && ts.Month() > 0 && ts.Day() > 0 {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if found {
+		return &ts
+	}
+	return nil
+}
+
 // GetCleanTextAndLinks parses the main HTML node for text and links
 func (extr *ContentExtractor) GetCleanTextAndLinks(topNode *goquery.Selection, lang string) (string, []string) {
 	outputFormatter := new(outputFormatter)
+	outputFormatter.config = extr.config
 	return outputFormatter.getFormattedText(topNode, lang)
 }
 
@@ -416,7 +500,7 @@ func (extr *ContentExtractor) updateNodeCount(node *goquery.Selection, addToCoun
 
 //a lot of times the first paragraph might be the caption under an image so we'll want to make sure if we're going to
 //boost a parent node that it should be connected to other paragraphs, at least for the first n paragraphs
-//so we'll want to make sure that the next sibling is a paragraph and has at least some substatial weight to it
+//so we'll want to make sure that the next sibling is a paragraph and has at least some substantial weight to it
 func (extr *ContentExtractor) isBoostable(node *goquery.Selection) bool {
 	stepsAway := 0
 	next := node.Next()
@@ -485,7 +569,7 @@ func (extr *ContentExtractor) isHighLinkDensity(node *goquery.Selection) bool {
 	score := linkDivisor * float64(nlinks)
 
 	if extr.config.debug {
-		logText := ""
+		var logText string
 		if len(node.Text()) >= 51 {
 			logText = node.Text()[0:50]
 		} else {
