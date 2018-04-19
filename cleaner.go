@@ -2,12 +2,13 @@ package goose
 
 import (
 	"container/list"
-	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/net/html"
-	"golang.org/x/net/html/atom"
 	"log"
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // Cleaner removes menus, ads, sidebars, etc. and leaves the main content
@@ -174,6 +175,7 @@ var removeNodesRegEx = regexp.MustCompile("" +
 	"sponsor|" +
 	"^stream-sidebar|" +
 	"sub_nav|" +
+	"subnav|" +
 	"subscribe|" +
 	"subscription|" +
 	"tabsCity|" +
