@@ -697,6 +697,25 @@ func Test_ProfitLindorffFi(t *testing.T) {
 	}
 }
 
+// Reuters article
+func Test_ReutersParse(t *testing.T) {
+	article := Article{
+		Domain:          "reuters.com",
+		Title:           "Massive storm Patricia batters Mexico's Pacific coast, damage unclear",
+		MetaDescription: "One of the strongest ever hurricanes lashed western Mexico with rain and winds of up to 165 mph (266 km/h), causing chaos in coastal towns and resorts but less damage than feared before weakening on Saturday as it moved inland.",
+		CleanedText:     "Mowing down trees, flooding streets and battering buildings, Hurricane Patricia plowed into Mexico as a Category 5 storm on Friday before grinding inland, where it began to lose power in the mountains that rise up along the Pacific coast.",
+		MetaKeywords:    "US,MEXICO,STORM,PATRICIA,Picture available,Mexico,Freight Transportation : Marine (TRBC),Disasters / Accidents,Environment,Weather Markets / Weather,Science,Tourism / Travel,Refined Products,Insurance-Linked Securities,Arts / Culture / Entertainment,Graphics,Major News,Corporate Events,Marine Services (TRBC),Transportation (TRBC),Precipitation,Wind / Hurricanes / Typhoons / Tornadoes,South America / Central America,Pictures,Americas,Video",
+		CanonicalLink:   "http://www.reuters.com/article/2015/10/24/us-mexico-storm-patricia-idUSKCN0SH16720151024",
+		TopImage:        "http://s2.reutersmedia.net/resources/r/?m=02&d=20151024&t=2&i=1089359801&w=&fh=545px&fw=&ll=&pl=&sq=&r=LYNXNPEB9N023",
+	}
+
+	err := ValidateArticle(article)
+	if err != nil {
+		t.Error(err)
+	}
+
+}
+
 // Relative image test
 func Test_RelativeImageWithSpecialChars(t *testing.T) {
 	article := Article{
