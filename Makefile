@@ -114,11 +114,11 @@ fmtcheck:
 
 # Check for syntax errors
 vet:
-	GOPATH=$(GOPATH) go vet .
+	GOPATH=$(GOPATH) go vet ./...
 
 # Check for style errors
 lint:
-	GOPATH=$(GOPATH) PATH=$(GOPATH)/bin:$(PATH) golint .
+	GOPATH=$(GOPATH) PATH=$(GOPATH)/bin:$(PATH) golint ./...
 
 # Generate the coverage report
 coverage:
